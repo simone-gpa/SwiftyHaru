@@ -8,10 +8,10 @@
 
 import CLibHaru
 
-public extension PDFDocument {
+extension PDFDocument {
     
     /// Determines how pages in the document should be displayed.
-    public enum PageLayout: UInt32 {
+    public enum PageLayout: UInt32, CaseIterable {
         
         /// Only one page is displayed.
         case single = 0

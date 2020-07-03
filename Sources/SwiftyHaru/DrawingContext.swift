@@ -614,6 +614,35 @@ public final class DrawingContext {
         
         return lines.map { HPDF_Page_TextWidth(_page, $0) }.max()!
     }
+
+    /// Calculates the number of UTF8 characters which can be included within the specified width.
+    ///
+    /// - Parameters:
+    ///   - text:     The text to use for calculation.
+    ///   - width:    The width of the area to put the text.
+    ///   - wordwrap: When there are three words of "ABCDE", "FGH", and "IJKL", and the substring until "J" can be
+    ///               included within the width, if `wordwrap` parameter is `false` it returns 12, and if `wordwrap`
+    ///               parameter is `true`, it returns 10 (the end of the previous word).
+    /// - Returns:
+    ///   - `utf8Length`: The byte length which can be included within the specified width in current font size,
+    ///                   character spacing and word spacing.
+    ///   - `realWidth`:  The real width of the text.
+    public func measureText(_ text: String,
+                            width: Float,
+                            wordwrap: Bool) throws -> (utf8Length: Int, realWidth: Float) {
+
+        _setFontIfNeeded()
+
+        var realWidth: Float = 0
+        let utf8Length = HPDF_Page_MeasureText(_page, text, width, wordwrap ? HPDF_TRUE : HPDF_FALSE, &realWidth)
+
+        if HPDF_GetError(_documentHandle) != UInt(HPDF_OK) {
+            HPDF_ResetError(_documentHandle)
+            throw _document._error
+        }
+
+        return (utf8Length: Int(utf8Length), realWidth: realWidth)
+    }
     
     /// Gets the bounding box of the text in the current font size and leading. Text can be multiline.
     ///
@@ -678,7 +707,72 @@ public final class DrawingContext {
             HPDF_Page_SetTextLeading(_page, newValue)
         }
     }
-    
+
+    /// The text rendering mode. The initial value of text rendering mode is `TextRenderingMode.fill`.
+    public var textRenderingMode: TextRenderingMode {
+        get {
+            return TextRenderingMode(HPDF_Page_GetTextRenderingMode(_page))
+        }
+        set {
+            HPDF_Page_SetTextRenderingMode(_page, HPDF_TextRenderingMode(newValue.rawValue))
+        }
+    }
+
+    /// The default character spacing.
+    public static let defaultCharacterSpacing = Float(HPDF_DEF_CHARSPACE)
+
+    /// The minimum character spacing.
+    public static let minCharacterSpacing = Float(HPDF_MIN_CHARSPACE)
+
+    /// The maximum character spacing.
+    public static let maxCharacterSpacing = Float(HPDF_MAX_CHARSPACE)
+
+    /// The current value of the page's character spacing. Default value is `DrawingContext.defaultCharacterSpacing`.
+    /// Minimum value is `DrawingContext.minCharacterSpacing`, maximum value is `DrawingContext.maxCharacterSpacing`.
+    public var characterSpacing: Float {
+        get {
+            return HPDF_Page_GetCharSpace(_page)
+        }
+        set {
+            precondition(newValue >= DrawingContext.minCharacterSpacing &&
+                         newValue <= DrawingContext.maxCharacterSpacing,
+                         """
+                         The value of characterSpacing must be between `DrawingContext.minCharacterSpacing` \
+                         and `DrawingContext.maxCharacterSpacing`.
+                         """)
+            if HPDF_Page_SetCharSpace(_page, newValue) != UInt(HPDF_OK) {
+                 HPDF_ResetError(_documentHandle)
+            }
+        }
+    }
+
+    /// The default word spacing.
+    public static let defaultWordSpacing = Float(HPDF_DEF_WORDSPACE)
+
+    /// The minimum word spacing.
+    public static let minWordSpacing = Float(HPDF_MIN_WORDSPACE)
+
+    /// The maximum word spacing.
+    public static let maxWordSpacing = Float(HPDF_MAX_WORDSPACE)
+
+    /// The current value of the page's word spacing. Default value is `DrawingContext.defaultWordSpacing`.
+    /// Minimum value is `DrawingContext.minWordSpacing`, maximum value is `DrawingContext.maxWordSpacing`.
+    public var wordSpacing: Float {
+        get {
+            return HPDF_Page_GetWordSpace(_page)
+        }
+        set {
+            precondition(newValue >= DrawingContext.minWordSpacing && newValue <= DrawingContext.maxWordSpacing,
+                         """
+                         The value of wordSpacing must be between `DrawingContext.minWordSpacing` \
+                         and `DrawingContext.maxWordSpacing`.
+                         """)
+            if HPDF_Page_SetWordSpace(_page, newValue) != UInt(HPDF_OK) {
+                HPDF_ResetError(_documentHandle)
+            }
+        }
+    }
+
     // MARK: - Text showing
     
     private func _moveTextPosition(to point: Point) {
@@ -714,12 +808,23 @@ public final class DrawingContext {
     
     /// Prints the text at the specified position on the page. You can use "\n" to print multiline text.
     ///
-    /// - parameter text: The text to print.
-    /// - parameter position: The position to show the text at.
-    public func show(text: String, atPosition position: Point) throws {
+    /// - Parameters:
+    ///   - text:       The text to print.
+    ///   - position:   The position to show the text at.
+    ///   - textMatrix: A transformation matrix for text to be drawn in. Default value is `nil`,
+    ///                 in which case the identity matrix is used. Must not be degenerate.
+    public func show(text: String, atPosition position: Point, textMatrix: AffineTransform? = nil) throws {
         
         HPDF_Page_BeginText(_page)
-        
+
+        if let textMatrix = textMatrix {
+            precondition(!textMatrix.isDegenerate, "The text matrix must not be degenerate")
+            HPDF_Page_SetTextMatrix(_page,
+                                    textMatrix.a,  textMatrix.b,
+                                    textMatrix.c,  textMatrix.d,
+                                    textMatrix.tx, textMatrix.ty)
+        }
+
         _moveTextPosition(to: position)
         
         let lines = text.components(separatedBy: .newlines)
@@ -735,12 +840,15 @@ public final class DrawingContext {
     
     /// Prints the text at the specified position on the page. You can use "\n" to print multiline text.
     ///
-    /// - parameter text: The text to print.
-    /// - parameter x:    x coordinate of the position to show the text at.
-    /// - parameter y:    y coordinate of the position to show the text at.
+    /// - Parameters:
+    ///   - text:       The text to print.
+    ///   - x:          x coordinate of the position to show the text at.
+    ///   - y:          y coordinate of the position to show the text at.
+    ///   - textMatrix: A transformation matrix for text to be drawn in. Default value is `nil`,
+    ///                 in which case the identity matrix is used. Must not be degenerate.
     @inlinable
-    public func show(text: String, atX x: Float, y: Float) throws {
-        try show(text: text, atPosition: Point(x: x, y: y))
+    public func show(text: String, atX x: Float, y: Float, textMatrix: AffineTransform? = nil) throws {
+        try show(text: text, atPosition: Point(x: x, y: y), textMatrix: textMatrix)
     }
 
     /// Prints the text inside the specified region.

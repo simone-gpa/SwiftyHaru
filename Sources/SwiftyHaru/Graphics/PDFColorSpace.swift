@@ -9,7 +9,7 @@
 import CLibHaru
 
 /// A profile that specifies how to interpret a color value for display.
-public enum PDFColorSpace: UInt32 {
+public enum PDFColorSpace: UInt32, CaseIterable {
     case deviceGray
     case deviceRGB
     case deviceCMYK
@@ -24,7 +24,7 @@ public enum PDFColorSpace: UInt32 {
     case undefined
 }
 
-internal extension PDFColorSpace {
+extension PDFColorSpace {
     
     internal init(haruEnum: HPDF_ColorSpace) {
         self.init(rawValue: haruEnum.rawValue)!

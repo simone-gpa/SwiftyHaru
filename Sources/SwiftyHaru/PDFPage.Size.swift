@@ -6,12 +6,10 @@
 //
 //
 
-import CLibHaru
-
 extension PDFPage {
     
     /// A predefined size for a page.
-    public enum Size: UInt32 {
+    public enum Size: UInt32, CaseIterable {
         
         /// 8.5 x 11 inches
         case letter
@@ -52,10 +50,6 @@ extension PDFPage {
 }
 
 extension PDFPage.Size {
-    
-    internal init(haruEnum: HPDF_PageSizes) {
-        self.init(rawValue: haruEnum.rawValue)!
-    }
 
     /// The numeric value of the predefined size represented in pixels.
     public var sizeInPixels: Size {
@@ -63,7 +57,7 @@ extension PDFPage.Size {
         switch self {
         case .letter:        return     612 × 792
         case .legal:         return     612 × 1008
-        case .a3:            return  841.89 × 1199.551
+        case .a3:            return  841.89 × 1190.551
         case .a4:            return 595.276 × 841.89
         case .a5:            return 419.528 × 595.276
         case .b4:            return 708.661 × 1000.63

@@ -10,6 +10,9 @@ import typealias CLibHaru.HPDF_Point
 
 /// A structure that contains width and height values.
 public struct Size: Hashable {
+
+    /// The size whose width and height are both zero.
+    public static let zero = Size(width: 0, height: 0)
     
     /// A width value.
     public var width: Float
@@ -98,6 +101,17 @@ public struct Point: Hashable {
     public static func +(lhs: Point, rhs: Vector) -> Point {
         return Point(x: lhs.x + rhs.dx, y: lhs.y + rhs.dy)
     }
+
+    /// Translates the `lhs` point by the specified `rhs` vector and stores the result in `lhs`.
+    ///
+    /// - Parameters:
+    ///   - lhs: The point to translate.
+    ///   - rhs: The difference vector.
+    @inlinable
+    public static func +=(lhs: inout Point, rhs: Vector) {
+        lhs.x += rhs.dx
+        lhs.y += rhs.dy
+    }
     
     /// Translates the `lhs` point by negation of the specified `rhs` vector.
     ///
@@ -108,6 +122,18 @@ public struct Point: Hashable {
     @inlinable
     public static func -(lhs: Point, rhs: Vector) -> Point {
         return Point(x: lhs.x - rhs.dx, y: lhs.y - rhs.dy)
+    }
+
+    /// Translates the `lhs` point by negation of the specified `rhs` vector and stores the result
+    /// in `lhs`.
+    ///
+    /// - Parameters:
+    ///   - lhs: The point to translate.
+    ///   - rhs: The difference vector.
+    @inlinable
+    public static func -=(lhs: inout Point, rhs: Vector) {
+        lhs.x -= rhs.dx
+        lhs.y -= rhs.dy
     }
 
     /// Returns the vector that needs to be added to `rhs` to get `lhs`.
@@ -178,6 +204,9 @@ public struct Vector: Hashable {
         self.init(dx: Float(dx), dy: Float(dy))
     }
 
+#if swift(>=5.0)
+    // This operator is implemented in an extension of the `AdditiveArithmetic` protodol in the standard library.
+#else
     /// Returns the given vector unchanged.
     ///
     /// You can use the unary plus operator (+) to provide symmetry in your code.
@@ -188,6 +217,7 @@ public struct Vector: Hashable {
     public prefix static func +(x: Vector) -> Vector {
         return x
     }
+#endif
 
     /// Returns the inverse of the specified vector.
     ///
@@ -218,6 +248,29 @@ public struct Vector: Hashable {
     @inlinable
     public static func -(lhs: Vector, rhs: Vector) -> Vector {
         return Vector(dx: lhs.dx - rhs.dx, dy: lhs.dy - rhs.dy)
+    }
+
+    /// Adds two vectors and stores the result in the left-hand-side variable.
+    ///
+    /// - Parameters:
+    ///   - lhs: The first vector to add.
+    ///   - rhs: The second vector to add.
+    @inlinable
+    public static func +=(lhs: inout Vector, rhs: Vector) {
+        lhs.dx += rhs.dx
+        lhs.dy += rhs.dy
+    }
+
+    /// Subtracts the second vector from the first and stores the difference in the
+    /// left-hand-side variable.
+    ///
+    /// - Parameters:
+    ///   - lhs: A vector.
+    ///   - rhs: The vector to subtract from `lhs`.
+    @inlinable
+    public static func -=(lhs: inout Vector, rhs: Vector) {
+        lhs.dx -= rhs.dx
+        lhs.dy -= rhs.dy
     }
 
     /// Multiplies a vector by a floating-point scalar value.
@@ -265,6 +318,10 @@ public struct Vector: Hashable {
     }
 }
 
+#if swift(>=5.0)
+extension Vector: AdditiveArithmetic {}
+#endif
+
 extension Vector: CustomDebugStringConvertible {
     public var debugDescription: String {
         return "(\(dx), \(dy))"
@@ -273,6 +330,9 @@ extension Vector: CustomDebugStringConvertible {
 
 /// A structure that contains the location and dimensions of a rectangle.
 public struct Rectangle: Hashable {
+
+    /// The rectangle whose origin and size are both zero.
+    public static let zero = Rectangle(origin: .zero, size: .zero)
     
     /// A point that specifies the coordinates of the rectangle’s origin.
     public var origin: Point
@@ -386,4 +446,17 @@ infix operator ×
 /// - returns: The size representing provided width and height.
 internal func × (width: Float, height: Float) -> Size {
     return Size(width: width, height: height)
+}
+
+extension Rectangle {
+
+    internal init?(decoding array: PDFArray) {
+        guard array.count == 4,
+              let x      = array[0]?.pointee.value,
+              let y      = array[1]?.pointee.value,
+              let width  = array[2]?.pointee.value,
+              let height = array[3]?.pointee.value else { return nil }
+
+        self.init(x: x, y: y, width: width, height: height)
+    }
 }

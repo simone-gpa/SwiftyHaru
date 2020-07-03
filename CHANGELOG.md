@@ -1,5 +1,19 @@
 # Change Log
 
+## Unreleased
+
+**Breaking changes:**
+
+- `PDFError.pageInvalidSize` and `PDFError.pageInvalidDirection` are removed.
+
+**Implemented features:**
+
+- Setting text rendering mode
+- Specifying a text matrix when showing text
+- Setting character spacing and word spacing
+- Measuring the number of characters that fit in a width
+- All the enums now conform to `CaseIterable`
+
 ## [0.3.0](https://github.com/WeirdMath/SwiftyHaru/tree/0.3.0) (2018-12-24)
 
 Please note that this version requires Swift 4.2.
